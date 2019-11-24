@@ -122,8 +122,8 @@ def compare_images(im_name, true_im_name, interp_func):
 
 def main():
     
-    im_name = '../data/wild_animal300.png'
-    true_im_name = '../data/wild_animal450.png'
+    im_name = 'data/wild_animal300.png'
+    true_im_name = 'data/wild_animal450.png'
     
     print("Want Lower MSE, and Higher PSNR and SSIM\n")
     
