@@ -88,42 +88,53 @@ def bicubic(im, win_size=20, scale=None, height=None, width=None):
     
     return im2
 
-def plot_images(im1, im2):
-    fig, ax = plt.subplots(1, 2, sharey=True, sharex=True)
-    ax[0].imshow(im1)
+def plot_images(original_im, ground_truth_im, upsampled_im,title=None ):
+
+    fig, ax = plt.subplots(1, 3, sharey=True, sharex=True)
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+
+    if(title is not None):
+        fig.suptitle("{}".format(title),fontsize=24)
+
+    ax[0].imshow(original_im)
     ax[0].axis('off')
-    ax[0].set_title("Original image: {} x {}".format(im1.shape[0], im1.shape[1]), fontsize=10)
-    ax[1].imshow(im2)
+    ax[0].set_title("Original Image: {} x {}".format(original_im.shape[0], original_im.shape[1]), fontsize=12)
+    ax[1].imshow(ground_truth_im)
     ax[1].axis('off')
-    ax[1].set_title("New image: {} x {}".format(im2.shape[0], im2.shape[1]), fontsize=10)
+    ax[1].set_title("Ground Truth Image: {} x {}".format(ground_truth_im.shape[0], ground_truth_im.shape[1]), fontsize=12)
+    ax[2].imshow(upsampled_im)
+    ax[2].axis('off')
+    ax[2].set_title("Upsampled Image: {} x {}".format(upsampled_im.shape[0], upsampled_im.shape[1]), fontsize=12)
     plt.show()
 
-def compare_images(im_name, true_im_name, interp_func):
+def compare_images(original_im_name, ground_truth_im_name, interp_func):
     
-    im = skimage.io.imread(im_name)
-    im = skimage.color.rgba2rgb(im)
+    original_im = skimage.io.imread(original_im_name)
+    original_im = skimage.color.rgba2rgb(original_im)
 
-    true_im = skimage.io.imread(true_im_name)
-    true_im = skimage.color.rgba2rgb(true_im)
-    im2 = interp_func(im, height=true_im.shape[0], width=true_im.shape[1], win_size=20)
+    ground_truth_im = skimage.io.imread(ground_truth_im_name)
+    ground_truth_im = skimage.color.rgba2rgb(ground_truth_im)
+    upsampled_im = interp_func(original_im, height=ground_truth_im.shape[0], width=ground_truth_im.shape[1], win_size=20)
     
-    assert true_im.shape == im2.shape, "Interpolated Image not same size as True Image"
+    assert ground_truth_im.shape == upsampled_im.shape, "Interpolated Image not same size as True Image"
     
-    mse = util.mse(true_im, im2)
-    psnr = util.psnr(true_im, im2)
-    ssim, _ = skimage.measure.compare_ssim(true_im, im2, full=True, multichannel=True)
+    mse = util.mse(ground_truth_im, upsampled_im)
+    psnr = util.psnr(ground_truth_im, upsampled_im)
+    ssim, _ = skimage.measure.compare_ssim(ground_truth_im, upsampled_im, full=True, multichannel=True)
 
-    print("Resizing {} x {} to {} x {} using {}".format(im.shape[0], \
-          im.shape[1], im2.shape[0], im2.shape[1], interp_func.__name__))
+    print("Resizing {} x {} to {} x {} using {} interpolation.".format(original_im.shape[0], \
+          original_im.shape[1], upsampled_im.shape[0], upsampled_im.shape[1], interp_func.__name__))
+    print("\nEvaluation Metrics:")
     print("Mean-Squared Error is {:.4f}".format(mse))
     print("Peak Signal-to-Noise Ratio is {:.4f}".format(psnr))
     print("Structural Similarity Index is {:.4f}".format(ssim))
-    plot_images(im, im2)
+    plot_images(original_im, ground_truth_im,upsampled_im,interp_func.__name__)
 
 def main():
     
     im_name = 'data/wild_animal300.png'
-    true_im_name = 'data/wild_animal450.png'
+    true_im_name = 'data/wild_animal600.png'
     
     print("Want Lower MSE, and Higher PSNR and SSIM\n")
     
