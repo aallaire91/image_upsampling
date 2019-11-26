@@ -4,6 +4,14 @@ import scipy
 import skimage
 import util
 
+def biquadratic_histospline(original_im_name,original_im,scale=2):
+    upsampled_im = []
+    h, w, c = original_im.shape
+    upsampled_im_name = original_im_name[0:original_im_name.rfind('_', 0, original_im_name.rfind('_'))]
+    upsampled_im_name = upsampled_im_name + '_' + str(int(w*scale)) + '_' + str(int(h*scale)) + '_histospline.png'
+    upsampled_im = plt.imread(upsampled_im_name)
+
+    return upsampled_im
 def bilinear(im, win_size=20, scale=None, height=None, width=None):
         
     h, w, chan = im.shape
@@ -205,15 +213,29 @@ def compare_images(original_im_name, ground_truth_im_name, interp_func):
     
     if np.max(original_im) > 2:
         original_im = original_im / 255.0
+
+    original_im = original_im.astype(np.float64)
+
     if np.max(ground_truth_im) > 2:
         ground_truth_im = ground_truth_im / 255.0
-    
-    upsampled_im = interp_func(original_im, height=ground_truth_im.shape[0], \
-                               width=ground_truth_im.shape[1], win_size=20)
-    
+
+    ground_truth_im = ground_truth_im.astype(np.float64)
+
+    upsampled_im = []
+    if ('histospline' in interp_func.__name__ ):
+        scale = ground_truth_im.shape[0]/original_im.shape[0]
+        upsampled_im = interp_func(original_im_name,original_im,scale=scale )
+    else:
+        upsampled_im = interp_func(original_im, height=ground_truth_im.shape[0], \
+                                   width=ground_truth_im.shape[1], win_size=20)
     assert ground_truth_im.shape == upsampled_im.shape, \
         "Interpolated Image not same size as True Image"
-    
+
+    if np.max(upsampled_im) > 2:
+        upsampled_im = upsampled_im / 255.0
+
+    upsampled_im = upsampled_im.astype(np.float64)
+
     mse = util.mse(ground_truth_im, upsampled_im)
     psnr = util.psnr(ground_truth_im, upsampled_im)
     ssim, _ = skimage.measure.compare_ssim(ground_truth_im, upsampled_im, \
@@ -229,18 +251,29 @@ def compare_images(original_im_name, ground_truth_im_name, interp_func):
     print("Structural Similarity Index is {:.4f}".format(ssim))
     plot_images(original_im, ground_truth_im,upsampled_im,interp_func.__name__)
     print("--------------")
-    
+
+def generate_rainbow_grid():
+    np.zeros((300,300,3))
+
+    r = (1.0,0.0,0.0)
+    o = (1.0,0.5,0.0)
+    y = (1.0,1.0,0.0)
+    g = (0.0,1.0,0.0)
+    b = (0.0,0.0,1.0)
+    p = (0.5,0.0,0.5)
+
 
 def main():
     
     im_name = 'data/tiger_300_215.png'
-    true_im_name = 'data/tiger_600_430.png'
+    true_im_name = 'data/tiger_1200_860.png'
     
     print("Want Lower MSE, and Higher PSNR and SSIM\n")
-    
+
     compare_images(im_name, true_im_name, bilinear)
     compare_images(im_name, true_im_name, bicubic)
     compare_images(im_name, true_im_name, nedi)
+    compare_images(im_name, true_im_name, biquadratic_histospline)
     
 if __name__ == "__main__":
     main()
