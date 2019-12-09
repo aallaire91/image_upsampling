@@ -3,12 +3,15 @@ import numpy as np
 import scipy
 import skimage
 import util
+import os
 
 def biquadratic_histospline(original_im_name,original_im,scale=2):
     upsampled_im = []
     h, w, c = original_im.shape
-    upsampled_im_name = original_im_name[0:original_im_name.rfind('_', 0, original_im_name.rfind('_'))]
-    upsampled_im_name = upsampled_im_name + '_' + str(int(w*scale)) + '_' + str(int(h*scale)) + '_histospline.png'
+    upsampled_im_name = original_im_name[0:original_im_name.rfind('_', 0, \
+                                                original_im_name.rfind('_'))]
+    upsampled_im_name = upsampled_im_name + '_' + str(int(w*scale)) + '_' + \
+                                        str(int(h*scale)) + '_histospline.png'
     upsampled_im = plt.imread(upsampled_im_name)
 
     return upsampled_im
@@ -98,7 +101,6 @@ def nedi(im, win_size=20, scale=None, height=None, width=None):
     if int(height/h) == 4:
         flag = True
     else:
-#        print('Ratio', height/h)
         flag = False
         
     scale = 2
@@ -107,7 +109,7 @@ def nedi(im, win_size=20, scale=None, height=None, width=None):
     
     for kk in np.arange(chan):
         im1 = im[:,:,kk]
-        #creating x and y matrices
+        
         xt = []
         yt = []
         for ii in range(1, h-1):
@@ -123,9 +125,8 @@ def nedi(im, win_size=20, scale=None, height=None, width=None):
         x = np.array(xt)
         y = np.array(yt)
         
-        b = np.linalg.inv(x.T @ x) @ x.T @ y
+        b = np.linalg.pinv(x.T @ x) @ x.T @ y
         
-        # initializing image to be predicted
         im2 = np.zeros((height, width))
         for ii in range(h):
             for jj in range(w):
@@ -206,11 +207,18 @@ def plot_images(original_im, ground_truth_im, upsampled_im,title=None):
           upsampled_im.shape[1]), fontsize=12)
     plt.show()
 
-def compare_images(original_im_name, ground_truth_im_name, interp_func):
+def compare_images(original_im_name, ground_truth_im_name, interp_func, \
+                   plot_flag = False):
     
     original_im = skimage.io.imread(original_im_name)
-    ground_truth_im = skimage.io.imread(ground_truth_im_name)
+    if original_im.shape[2]:
+        original_im = skimage.color.rgba2rgb(original_im)
     
+    ground_truth_im = skimage.io.imread(ground_truth_im_name)
+    if ground_truth_im.shape[2]:
+        ground_truth_im = skimage.color.rgba2rgb(ground_truth_im)
+
+
     if np.max(original_im) > 2:
         original_im = original_im / 255.0
 
@@ -220,7 +228,10 @@ def compare_images(original_im_name, ground_truth_im_name, interp_func):
         ground_truth_im = ground_truth_im / 255.0
 
     ground_truth_im = ground_truth_im.astype(np.float64)
-
+    
+    if original_im.shape[0] == 129:
+        original_im = original_im[:128,:128]
+    
     upsampled_im = []
     if ('histospline' in interp_func.__name__ ):
         scale = ground_truth_im.shape[0]/original_im.shape[0]
@@ -228,6 +239,7 @@ def compare_images(original_im_name, ground_truth_im_name, interp_func):
     else:
         upsampled_im = interp_func(original_im, height=ground_truth_im.shape[0], \
                                    width=ground_truth_im.shape[1], win_size=20)
+    
     assert ground_truth_im.shape == upsampled_im.shape, \
         "Interpolated Image not same size as True Image"
 
@@ -235,45 +247,65 @@ def compare_images(original_im_name, ground_truth_im_name, interp_func):
         upsampled_im = upsampled_im / 255.0
 
     upsampled_im = upsampled_im.astype(np.float64)
-
-    mse = util.mse(ground_truth_im, upsampled_im)
-    psnr = util.psnr(ground_truth_im, upsampled_im)
-    ssim, _ = skimage.measure.compare_ssim(ground_truth_im, upsampled_im, \
-                                           full=True, multichannel=True)
-
-    print("Resizing {} x {} to {} x {} using {} interpolation.".format(\
-          original_im.shape[0], \
-          original_im.shape[1], upsampled_im.shape[0], upsampled_im.shape[1], \
-          interp_func.__name__))
-    print("\nEvaluation Metrics:")
-    print("Mean-Squared Error is {:.4f}".format(mse))
-    print("Peak Signal-to-Noise Ratio is {:.4f}".format(psnr))
-    print("Structural Similarity Index is {:.4f}".format(ssim))
-    plot_images(original_im, ground_truth_im,upsampled_im,interp_func.__name__)
-    print("--------------")
-
-def generate_rainbow_grid():
-    np.zeros((300,300,3))
-
-    r = (1.0,0.0,0.0)
-    o = (1.0,0.5,0.0)
-    y = (1.0,1.0,0.0)
-    g = (0.0,1.0,0.0)
-    b = (0.0,0.0,1.0)
-    p = (0.5,0.0,0.5)
-
+    
+    if plot_flag:
+        mse = util.mse(ground_truth_im, upsampled_im)
+        psnr = util.psnr(ground_truth_im, upsampled_im)
+        ssim, _ = skimage.measure.compare_ssim(ground_truth_im, upsampled_im, \
+                                               full=True, multichannel=True)
+    
+        print("Resizing {} x {} to {} x {} using {} interpolation.".format(\
+              original_im.shape[0], \
+              original_im.shape[1], upsampled_im.shape[0], upsampled_im.shape[1], \
+              interp_func.__name__))
+        print("\nEvaluation Metrics:")
+        print("Mean-Squared Error is {:.4f}".format(mse))
+        print("Peak Signal-to-Noise Ratio is {:.4f}".format(psnr))
+        print("Structural Similarity Index is {:.4f}".format(ssim))
+        plot_images(original_im, ground_truth_im,upsampled_im,interp_func.__name__)
+        print("--------------")
+    return upsampled_im
 
 def main():
     
-    im_name = 'data/tiger_300_215.png'
-    true_im_name = 'data/tiger_1200_860.png'
-    
-    print("Want Lower MSE, and Higher PSNR and SSIM\n")
-
-    compare_images(im_name, true_im_name, bilinear)
-    compare_images(im_name, true_im_name, bicubic)
-    compare_images(im_name, true_im_name, nedi)
-    compare_images(im_name, true_im_name, biquadratic_histospline)
+    images = os.listdir('data')
+    objects = ['rainbow', 'fishercat', 'giraffe', 'hippo', 'tiger']
+    funcs = [bilinear, bicubic, nedi, biquadratic_histospline]
+    for obj in objects:
+        res = [i for i in images if obj in i]
+        res = [i for i in res if 'png' in i]
+        res = [i for i in res if not 'histospline' in i]
+        
+        if obj == 'rainbow':
+            img300 = 'data/' + [i for i in res if '128' in i][0]
+            img600 = 'data/' + [i for i in res if '256' in i][0]
+            img1200 = 'data/' + [i for i in res if '512' in i][0]
+        else:
+            img300 = 'data/' + [i for i in res if '300' in i][0]
+            img600 = 'data/' + [i for i in res if '600' in i][0]
+            img1200 = 'data/' + [i for i in res if '1200' in i][0]
+        
+        for interp_func in funcs:
+            
+            scale2 = compare_images(img300, img600, interp_func)
+            fname = 'results/' + obj + '_' + interp_func.__name__ + '_' + \
+                    str(2) + '.png'
+            
+            if obj == 'rainbow':
+                scale2 = scale2[:75,:75]
+                
+            plt.imsave(fname, scale2)
+            print(fname)
+            
+            scale4 = compare_images(img300, img1200, interp_func)
+            fname = 'results/' + obj + '_' + interp_func.__name__ + '_' + \
+                    str(4) + '.png'
+            
+            if obj == 'rainbow':
+                scale4 = scale4[:150,:150]
+                    
+            plt.imsave(fname, scale4)
+            print(fname)
     
 if __name__ == "__main__":
     main()
